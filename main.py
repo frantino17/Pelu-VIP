@@ -69,10 +69,7 @@ class PeluqueriaVIPApp(QMainWindow):
     def init_ui(self):
         """Inicializa la interfaz de usuario"""
         self.setWindowTitle('Simulación Peluquería VIP')
-        self.setGeometry(50, 50, 1600, 950)  # Ventana más grande
-        
-        # Maximizar ventana al inicio (con botones de control visibles)
-        self.showMaximized()
+        self.setGeometry(50, 50, 1600, 950)  # Ventana grande
         
         # Widget central
         central_widget = QWidget()
@@ -80,13 +77,15 @@ class PeluqueriaVIPApp(QMainWindow):
         
         # Layout principal
         main_layout = QVBoxLayout()
+        main_layout.setSpacing(5)  # Reducir espaciado
+        main_layout.setContentsMargins(5, 5, 5, 5)  # Reducir márgenes
         central_widget.setLayout(main_layout)
         
         # Título
         titulo = QLabel('🪒 PELUQUERÍA VIP - SIMULACIÓN 🪒')
         titulo.setAlignment(Qt.AlignCenter)
         font = QFont()
-        font.setPointSize(24)  # Tamaño de fuente más grande
+        font.setPointSize(14)  # Reducido de 24 a 14
         font.setBold(True)
         titulo.setFont(font)
         main_layout.addWidget(titulo)
@@ -132,23 +131,23 @@ class PeluqueriaVIPApp(QMainWindow):
             QGroupBox {
                 font-weight: bold;
                 border: 2px solid #cccccc;
-                border-radius: 6px;
-                margin-top: 6px;
-                padding-top: 10px;
+                border-radius: 4px;
+                margin-top: 3px;
+                padding-top: 5px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px 0 5px;
+                left: 8px;
+                padding: 0 3px 0 3px;
             }
             QPushButton {
                 background-color: #4CAF50;
                 color: white;
                 border: none;
-                padding: 10px 18px;  
-                font-size: 15px;  
-                border-radius: 4px;
-                min-width: 120px;  
+                padding: 5px 10px;  
+                font-size: 11px;  
+                border-radius: 3px;
+                min-width: 100px;  
             }
             QPushButton:hover {
                 background-color: #45a049;
@@ -168,36 +167,23 @@ class PeluqueriaVIPApp(QMainWindow):
     
     def _crear_panel_control(self):
         """Crea el panel de control"""
-        group = QGroupBox("⚙️ Configuración de Simulación")
-        
-        # Aumentar tamaño de fuente del título del grupo
-        font_titulo_grupo = QFont()
-        font_titulo_grupo.setPointSize(14)
-        font_titulo_grupo.setBold(True)
-        group.setFont(font_titulo_grupo)
+        group = QGroupBox()  # Sin título para ahorrar espacio
         
         layout = QGridLayout()
+        layout.setSpacing(2)  # Reducido de 3 a 2
+        layout.setContentsMargins(3, 3, 3, 3)  # Reducido de 5 a 3
         
-        # Fuente para los SpinBox
+        # Fuente para los SpinBox (más pequeña)
         font_spin = QFont()
-        font_spin.setPointSize(12)
+        font_spin.setPointSize(8)  # Reducido de 9 a 8
         
-        # Fuente para los labels
+        # Fuente para los labels (más pequeña)
         font_label = QFont()
-        font_label.setPointSize(13)
+        font_label.setPointSize(9)  # Reducido de 10 a 9
         
         row = 0
         
-        # ===== SECCIÓN: PARÁMETROS DE SIMULACIÓN =====
-        lbl_sim = QLabel("<b>PARÁMETROS DE SIMULACIÓN:</b>")
-        font_section = QFont()
-        font_section.setPointSize(13)
-        font_section.setBold(True)
-        lbl_sim.setFont(font_section)
-        layout.addWidget(lbl_sim, row, 0, 1, 4)
-        row += 1
-        
-        # Número de días
+        # Número de días (sin subtítulo para evitar solapamiento)
         lbl_dias = QLabel("Número de días a simular:")
         lbl_dias.setFont(font_label)
         layout.addWidget(lbl_dias, row, 0)
@@ -206,7 +192,7 @@ class PeluqueriaVIPApp(QMainWindow):
         self.spin_dias.setMaximum(10000)
         self.spin_dias.setValue(30)
         self.spin_dias.setSuffix(" días")
-        self.spin_dias.setMinimumHeight(28)
+        self.spin_dias.setMinimumHeight(18)  # Reducido de 20 a 18
         self.spin_dias.setFont(font_spin)
         layout.addWidget(self.spin_dias, row, 1)
         
@@ -219,7 +205,7 @@ class PeluqueriaVIPApp(QMainWindow):
         self.spin_tiempo_max.setMaximum(2000)
         self.spin_tiempo_max.setValue(1000)
         self.spin_tiempo_max.setSuffix(" min")
-        self.spin_tiempo_max.setMinimumHeight(28)
+        self.spin_tiempo_max.setMinimumHeight(18)  # Reducido de 20 a 18
         self.spin_tiempo_max.setFont(font_spin)
         layout.addWidget(self.spin_tiempo_max, row, 3)
         row += 1
@@ -233,13 +219,16 @@ class PeluqueriaVIPApp(QMainWindow):
         self.spin_max_iter.setMaximum(100000)
         self.spin_max_iter.setValue(10000)
         self.spin_max_iter.setSingleStep(1000)
-        self.spin_max_iter.setMinimumHeight(28)
+        self.spin_max_iter.setMinimumHeight(18)  # Reducido de 20 a 18
         self.spin_max_iter.setFont(font_spin)
         layout.addWidget(self.spin_max_iter, row, 1, 1, 3)
         row += 1
         
         # ===== SECCIÓN: PARÁMETROS DEL MODELO =====
-        lbl_modelo = QLabel("<b>PARÁMETROS DEL MODELO (valores en ROJO del enunciado):</b>")
+        lbl_modelo = QLabel("<b>Modelo (valores del enunciado):</b>")
+        font_section = QFont()
+        font_section.setPointSize(9)
+        font_section.setBold(True)
         lbl_modelo.setFont(font_section)
         layout.addWidget(lbl_modelo, row, 0, 1, 4)
         row += 1
@@ -258,6 +247,7 @@ class PeluqueriaVIPApp(QMainWindow):
         self.spin_prob_aprendiz.setMaximum(100)
         self.spin_prob_aprendiz.setValue(15)
         self.spin_prob_aprendiz.setSuffix(" %")
+        self.spin_prob_aprendiz.setMinimumHeight(18)
         self.spin_prob_aprendiz.setFont(font_spin)
         self.spin_prob_aprendiz.valueChanged.connect(self._actualizar_prob_vet_b)
         layout.addWidget(self.spin_prob_aprendiz, row, 1)
@@ -269,12 +259,14 @@ class PeluqueriaVIPApp(QMainWindow):
         self.spin_tiempo_min_apr.setMinimum(1)
         self.spin_tiempo_min_apr.setMaximum(100)
         self.spin_tiempo_min_apr.setValue(20)
+        self.spin_tiempo_min_apr.setMinimumHeight(18)
         self.spin_tiempo_min_apr.setFont(font_spin)
         layout.addWidget(self.spin_tiempo_min_apr, row, 3)
         self.spin_tiempo_max_apr = QSpinBox()
         self.spin_tiempo_max_apr.setMinimum(1)
         self.spin_tiempo_max_apr.setMaximum(100)
         self.spin_tiempo_max_apr.setValue(30)
+        self.spin_tiempo_max_apr.setMinimumHeight(18)
         self.spin_tiempo_max_apr.setFont(font_spin)
         layout.addWidget(self.spin_tiempo_max_apr, row, 4)
         row += 1
@@ -293,6 +285,7 @@ class PeluqueriaVIPApp(QMainWindow):
         self.spin_prob_vet_a.setMaximum(100)
         self.spin_prob_vet_a.setValue(45)
         self.spin_prob_vet_a.setSuffix(" %")
+        self.spin_prob_vet_a.setMinimumHeight(18)
         self.spin_prob_vet_a.setFont(font_spin)
         self.spin_prob_vet_a.valueChanged.connect(self._actualizar_prob_vet_b)
         layout.addWidget(self.spin_prob_vet_a, row, 1)
@@ -304,12 +297,14 @@ class PeluqueriaVIPApp(QMainWindow):
         self.spin_tiempo_min_vet_a.setMinimum(1)
         self.spin_tiempo_min_vet_a.setMaximum(100)
         self.spin_tiempo_min_vet_a.setValue(11)
+        self.spin_tiempo_min_vet_a.setMinimumHeight(18)
         self.spin_tiempo_min_vet_a.setFont(font_spin)
         layout.addWidget(self.spin_tiempo_min_vet_a, row, 3)
         self.spin_tiempo_max_vet_a = QSpinBox()
         self.spin_tiempo_max_vet_a.setMinimum(1)
         self.spin_tiempo_max_vet_a.setMaximum(100)
         self.spin_tiempo_max_vet_a.setValue(13)
+        self.spin_tiempo_max_vet_a.setMinimumHeight(18)
         self.spin_tiempo_max_vet_a.setFont(font_spin)
         layout.addWidget(self.spin_tiempo_max_vet_a, row, 4)
         row += 1
@@ -336,12 +331,14 @@ class PeluqueriaVIPApp(QMainWindow):
         self.spin_tiempo_min_vet_b.setMinimum(1)
         self.spin_tiempo_min_vet_b.setMaximum(100)
         self.spin_tiempo_min_vet_b.setValue(12)
+        self.spin_tiempo_min_vet_b.setMinimumHeight(18)
         self.spin_tiempo_min_vet_b.setFont(font_spin)
         layout.addWidget(self.spin_tiempo_min_vet_b, row, 2)
         self.spin_tiempo_max_vet_b = QSpinBox()
         self.spin_tiempo_max_vet_b.setMinimum(1)
         self.spin_tiempo_max_vet_b.setMaximum(100)
         self.spin_tiempo_max_vet_b.setValue(18)
+        self.spin_tiempo_max_vet_b.setMinimumHeight(18)
         self.spin_tiempo_max_vet_b.setFont(font_spin)
         layout.addWidget(self.spin_tiempo_max_vet_b, row, 3)
         row += 1
@@ -360,6 +357,7 @@ class PeluqueriaVIPApp(QMainWindow):
         self.spin_llegada_min.setMaximum(100)
         self.spin_llegada_min.setValue(2)
         self.spin_llegada_min.setSuffix(" min")
+        self.spin_llegada_min.setMinimumHeight(18)
         self.spin_llegada_min.setFont(font_spin)
         layout.addWidget(self.spin_llegada_min, row, 2)
         self.spin_llegada_max = QSpinBox()
@@ -367,6 +365,7 @@ class PeluqueriaVIPApp(QMainWindow):
         self.spin_llegada_max.setMaximum(100)
         self.spin_llegada_max.setValue(12)
         self.spin_llegada_max.setSuffix(" min")
+        self.spin_llegada_max.setMinimumHeight(18)
         self.spin_llegada_max.setFont(font_spin)
         layout.addWidget(self.spin_llegada_max, row, 3)
         row += 1
@@ -385,14 +384,15 @@ class PeluqueriaVIPApp(QMainWindow):
         self.spin_tiempo_refrig.setMaximum(120)
         self.spin_tiempo_refrig.setValue(30)
         self.spin_tiempo_refrig.setSuffix(" min")
+        self.spin_tiempo_refrig.setMinimumHeight(18)
         self.spin_tiempo_refrig.setFont(font_spin)
         layout.addWidget(self.spin_tiempo_refrig, row, 2)
         row += 1
         
         # Separador
-        lbl_sep = QLabel("<b>Filtros Vector de Estado:</b>")
+        lbl_sep = QLabel("<b>Filtros:</b>")
         font_sep = QFont()
-        font_sep.setPointSize(13)
+        font_sep.setPointSize(9)  # Reducido de 13 a 9
         font_sep.setBold(True)
         lbl_sep.setFont(font_sep)
         layout.addWidget(lbl_sep, row, 0, 1, 4)
@@ -407,7 +407,7 @@ class PeluqueriaVIPApp(QMainWindow):
         self.spin_hora_inicio.setMaximum(2000)
         self.spin_hora_inicio.setValue(0)
         self.spin_hora_inicio.setSuffix(" min")
-        self.spin_hora_inicio.setMinimumHeight(28)
+        self.spin_hora_inicio.setMinimumHeight(18)  # Reducido de 20 a 18
         self.spin_hora_inicio.setFont(font_spin)
         layout.addWidget(self.spin_hora_inicio, row, 1)
         
@@ -420,7 +420,7 @@ class PeluqueriaVIPApp(QMainWindow):
         self.spin_num_filas.setMaximum(10000)
         self.spin_num_filas.setValue(50)
         self.spin_num_filas.setSuffix(" filas")
-        self.spin_num_filas.setMinimumHeight(28)
+        self.spin_num_filas.setMinimumHeight(18)  # Reducido de 20 a 18
         self.spin_num_filas.setFont(font_spin)
         layout.addWidget(self.spin_num_filas, row, 3)
         row += 1
@@ -456,22 +456,22 @@ class PeluqueriaVIPApp(QMainWindow):
         widget = QWidget()
         layout = QVBoxLayout()
         
-        # Info label
+        # Info label (más compacto)
         info_label = QLabel(
-            "<span style='font-size:13px;'>Vector de Estado: Muestra <b>i</b> iteraciones desde la hora <b>j</b> + última fila siempre. "
+            "<span style='font-size:10px;'>Vector de Estado: Muestra <b>i</b> iteraciones desde la hora <b>j</b> + última fila siempre. "
             "Modifica los parámetros arriba y presiona 'Actualizar Vector'.</span>"
         )
         info_label.setWordWrap(True)
-        info_label.setStyleSheet("background-color: #e3f2fd; padding: 12px; border-radius: 4px;")
+        info_label.setStyleSheet("background-color: #e3f2fd; padding: 5px; border-radius: 3px;")
         layout.addWidget(info_label)
         
         # Tabla del vector de estado
         self.tabla_vector = QTableWidget()
         self.tabla_vector.setAlternatingRowColors(True)
         
-        # Configurar fuente mucho más grande para la tabla
+        # Configurar fuente más pequeña para la tabla (compacta pero legible)
         font_tabla = QFont()
-        font_tabla.setPointSize(12)  # Aumentado de 10 a 12
+        font_tabla.setPointSize(8)  # Reducido de 12 a 8 para más espacio
         self.tabla_vector.setFont(font_tabla)
         
         # Configurar columnas
@@ -488,14 +488,14 @@ class PeluqueriaVIPApp(QMainWindow):
         self.tabla_vector.setColumnCount(len(columnas))
         self.tabla_vector.setHorizontalHeaderLabels(columnas)
         
-        # Configurar fuente mucho más grande para el header
+        # Configurar fuente más pequeña para el header
         header_font = QFont()
-        header_font.setPointSize(11)  # Aumentado de 9 a 11
+        header_font.setPointSize(8)  # Reducido de 11 a 8
         header_font.setBold(True)
         self.tabla_vector.horizontalHeader().setFont(header_font)
         
-        # Ajustar altura de las filas mucho más grande
-        self.tabla_vector.verticalHeader().setDefaultSectionSize(35)  # Aumentado de 28 a 35
+        # Ajustar altura de las filas más compacta
+        self.tabla_vector.verticalHeader().setDefaultSectionSize(20)  # Reducido de 35 a 20
         
         # Ajustar tamaño de columnas
         header = self.tabla_vector.horizontalHeader()
