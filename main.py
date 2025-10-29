@@ -30,12 +30,13 @@ class SimulacionThread(QThread):
     completado = pyqtSignal(dict)  # resultados
     dia_completado = pyqtSignal(dict, int)  # stats de un día, número de día
     
-    def __init__(self, num_dias, tiempo_max, max_iteraciones):
+    def __init__(self, num_dias, tiempo_max, max_iteraciones, params_modelo):
         super().__init__()
         self.num_dias = num_dias
         self.tiempo_max = tiempo_max
         self.max_iteraciones = max_iteraciones
-        self.simulacion = SimulacionPeluqueria()
+        self.params_modelo = params_modelo
+        self.simulacion = SimulacionPeluqueria(**params_modelo)
     
     def run(self):
         resultados = []
@@ -60,7 +61,7 @@ class PeluqueriaVIPApp(QMainWindow):
     
     def __init__(self):
         super().__init__()
-        self.simulacion = SimulacionPeluqueria()
+        self.simulacion = None  # Se creará con parámetros al ejecutar
         self.resultados = None
         self.ultima_simulacion = None  # Guardar referencia a la última simulación
         self.init_ui()
@@ -120,6 +121,9 @@ class PeluqueriaVIPApp(QMainWindow):
         
         main_layout.addWidget(tabs)
         
+        # Actualizar información del modelo con valores iniciales
+        self._actualizar_info_modelo()
+        
         # Estilo
         self.setStyleSheet("""
             QMainWindow {
@@ -176,96 +180,250 @@ class PeluqueriaVIPApp(QMainWindow):
         
         # Fuente para los SpinBox
         font_spin = QFont()
-        font_spin.setPointSize(14)
+        font_spin.setPointSize(12)
         
         # Fuente para los labels
         font_label = QFont()
-        font_label.setPointSize(15)
+        font_label.setPointSize(13)
         
-        # Fila 1: Número de días
-        row1_layout = QHBoxLayout()
-        lbl1 = QLabel("Número de días a simular:")
-        lbl1.setFont(font_label)
-        row1_layout.addWidget(lbl1)
+        row = 0
+        
+        # ===== SECCIÓN: PARÁMETROS DE SIMULACIÓN =====
+        lbl_sim = QLabel("<b>PARÁMETROS DE SIMULACIÓN:</b>")
+        font_section = QFont()
+        font_section.setPointSize(13)
+        font_section.setBold(True)
+        lbl_sim.setFont(font_section)
+        layout.addWidget(lbl_sim, row, 0, 1, 4)
+        row += 1
+        
+        # Número de días
+        lbl_dias = QLabel("Número de días a simular:")
+        lbl_dias.setFont(font_label)
+        layout.addWidget(lbl_dias, row, 0)
         self.spin_dias = QSpinBox()
         self.spin_dias.setMinimum(1)
         self.spin_dias.setMaximum(10000)
         self.spin_dias.setValue(30)
         self.spin_dias.setSuffix(" días")
-        self.spin_dias.setMinimumHeight(30)  # Altura mínima
-        font_spin = QFont()
-        font_spin.setPointSize(12)
+        self.spin_dias.setMinimumHeight(28)
         self.spin_dias.setFont(font_spin)
-        row1_layout.addWidget(self.spin_dias)
-        layout.addLayout(row1_layout, 0, 0, 1, 2)
+        layout.addWidget(self.spin_dias, row, 1)
         
-        # Fila 2: Tiempo máximo por día
-        row2_layout = QHBoxLayout()
-        lbl2 = QLabel("Tiempo máximo por día (min):")
-        lbl2.setFont(font_label)
-        row2_layout.addWidget(lbl2)
+        # Tiempo máximo por día
+        lbl_tiempo = QLabel("Tiempo máximo por día (min):")
+        lbl_tiempo.setFont(font_label)
+        layout.addWidget(lbl_tiempo, row, 2)
         self.spin_tiempo_max = QSpinBox()
         self.spin_tiempo_max.setMinimum(480)
         self.spin_tiempo_max.setMaximum(2000)
         self.spin_tiempo_max.setValue(1000)
         self.spin_tiempo_max.setSuffix(" min")
-        self.spin_tiempo_max.setMinimumHeight(30)
+        self.spin_tiempo_max.setMinimumHeight(28)
         self.spin_tiempo_max.setFont(font_spin)
-        row2_layout.addWidget(self.spin_tiempo_max)
-        layout.addLayout(row2_layout, 1, 0, 1, 2)
+        layout.addWidget(self.spin_tiempo_max, row, 3)
+        row += 1
         
-        # Fila 3: Máximo de iteraciones
-        row3_layout = QHBoxLayout()
-        lbl3 = QLabel("Máximo de iteraciones:")
-        lbl3.setFont(font_label)
-        row3_layout.addWidget(lbl3)
+        # Máximo de iteraciones
+        lbl_iter = QLabel("Máximo de iteraciones:")
+        lbl_iter.setFont(font_label)
+        layout.addWidget(lbl_iter, row, 0)
         self.spin_max_iter = QSpinBox()
         self.spin_max_iter.setMinimum(100)
         self.spin_max_iter.setMaximum(100000)
         self.spin_max_iter.setValue(10000)
         self.spin_max_iter.setSingleStep(1000)
-        self.spin_max_iter.setMinimumHeight(30)
+        self.spin_max_iter.setMinimumHeight(28)
         self.spin_max_iter.setFont(font_spin)
-        row3_layout.addWidget(self.spin_max_iter)
-        layout.addLayout(row3_layout, 2, 0, 1, 2)
+        layout.addWidget(self.spin_max_iter, row, 1, 1, 3)
+        row += 1
+        
+        # ===== SECCIÓN: PARÁMETROS DEL MODELO =====
+        lbl_modelo = QLabel("<b>PARÁMETROS DEL MODELO (valores en ROJO del enunciado):</b>")
+        lbl_modelo.setFont(font_section)
+        layout.addWidget(lbl_modelo, row, 0, 1, 4)
+        row += 1
+        
+        # Subsección: Aprendiz
+        lbl_apr = QLabel("<span style='color:red;'>Aprendiz:</span>")
+        lbl_apr.setFont(font_label)
+        layout.addWidget(lbl_apr, row, 0)
+        row += 1
+        
+        lbl1 = QLabel("  Probabilidad (%):")
+        lbl1.setFont(font_label)
+        layout.addWidget(lbl1, row, 0)
+        self.spin_prob_aprendiz = QSpinBox()
+        self.spin_prob_aprendiz.setMinimum(0)
+        self.spin_prob_aprendiz.setMaximum(100)
+        self.spin_prob_aprendiz.setValue(15)
+        self.spin_prob_aprendiz.setSuffix(" %")
+        self.spin_prob_aprendiz.setFont(font_spin)
+        self.spin_prob_aprendiz.valueChanged.connect(self._actualizar_prob_vet_b)
+        layout.addWidget(self.spin_prob_aprendiz, row, 1)
+        
+        lbl2 = QLabel("  Tiempo U(min, max):")
+        lbl2.setFont(font_label)
+        layout.addWidget(lbl2, row, 2)
+        self.spin_tiempo_min_apr = QSpinBox()
+        self.spin_tiempo_min_apr.setMinimum(1)
+        self.spin_tiempo_min_apr.setMaximum(100)
+        self.spin_tiempo_min_apr.setValue(20)
+        self.spin_tiempo_min_apr.setFont(font_spin)
+        layout.addWidget(self.spin_tiempo_min_apr, row, 3)
+        self.spin_tiempo_max_apr = QSpinBox()
+        self.spin_tiempo_max_apr.setMinimum(1)
+        self.spin_tiempo_max_apr.setMaximum(100)
+        self.spin_tiempo_max_apr.setValue(30)
+        self.spin_tiempo_max_apr.setFont(font_spin)
+        layout.addWidget(self.spin_tiempo_max_apr, row, 4)
+        row += 1
+        
+        # Subsección: Veterano A
+        lbl_veta = QLabel("<span style='color:red;'>Veterano A:</span>")
+        lbl_veta.setFont(font_label)
+        layout.addWidget(lbl_veta, row, 0)
+        row += 1
+        
+        lbl4 = QLabel("  Probabilidad (%):")
+        lbl4.setFont(font_label)
+        layout.addWidget(lbl4, row, 0)
+        self.spin_prob_vet_a = QSpinBox()
+        self.spin_prob_vet_a.setMinimum(0)
+        self.spin_prob_vet_a.setMaximum(100)
+        self.spin_prob_vet_a.setValue(45)
+        self.spin_prob_vet_a.setSuffix(" %")
+        self.spin_prob_vet_a.setFont(font_spin)
+        self.spin_prob_vet_a.valueChanged.connect(self._actualizar_prob_vet_b)
+        layout.addWidget(self.spin_prob_vet_a, row, 1)
+        
+        lbl5 = QLabel("  Tiempo U(min, max):")
+        lbl5.setFont(font_label)
+        layout.addWidget(lbl5, row, 2)
+        self.spin_tiempo_min_vet_a = QSpinBox()
+        self.spin_tiempo_min_vet_a.setMinimum(1)
+        self.spin_tiempo_min_vet_a.setMaximum(100)
+        self.spin_tiempo_min_vet_a.setValue(11)
+        self.spin_tiempo_min_vet_a.setFont(font_spin)
+        layout.addWidget(self.spin_tiempo_min_vet_a, row, 3)
+        self.spin_tiempo_max_vet_a = QSpinBox()
+        self.spin_tiempo_max_vet_a.setMinimum(1)
+        self.spin_tiempo_max_vet_a.setMaximum(100)
+        self.spin_tiempo_max_vet_a.setValue(13)
+        self.spin_tiempo_max_vet_a.setFont(font_spin)
+        layout.addWidget(self.spin_tiempo_max_vet_a, row, 4)
+        row += 1
+        
+        # Subsección: Veterano B
+        lbl_vetb = QLabel("<span style='color:red;'>Veterano B:</span>")
+        lbl_vetb.setFont(font_label)
+        layout.addWidget(lbl_vetb, row, 0)
+        row += 1
+        
+        lbl7 = QLabel("  Probabilidad (%):")
+        lbl7.setFont(font_label)
+        layout.addWidget(lbl7, row, 0)
+        # Label para mostrar la probabilidad calculada (no editable)
+        self.lbl_prob_vet_b = QLabel("<span style='color:green; font-weight:bold;'>40 %</span> (Calculada automáticamente)")
+        self.lbl_prob_vet_b.setFont(font_label)
+        layout.addWidget(self.lbl_prob_vet_b, row, 1, 1, 4)
+        row += 1
+        
+        lbl8 = QLabel("  Tiempo U(min, max):")
+        lbl8.setFont(font_label)
+        layout.addWidget(lbl8, row, 0, 1, 2)
+        self.spin_tiempo_min_vet_b = QSpinBox()
+        self.spin_tiempo_min_vet_b.setMinimum(1)
+        self.spin_tiempo_min_vet_b.setMaximum(100)
+        self.spin_tiempo_min_vet_b.setValue(12)
+        self.spin_tiempo_min_vet_b.setFont(font_spin)
+        layout.addWidget(self.spin_tiempo_min_vet_b, row, 2)
+        self.spin_tiempo_max_vet_b = QSpinBox()
+        self.spin_tiempo_max_vet_b.setMinimum(1)
+        self.spin_tiempo_max_vet_b.setMaximum(100)
+        self.spin_tiempo_max_vet_b.setValue(18)
+        self.spin_tiempo_max_vet_b.setFont(font_spin)
+        layout.addWidget(self.spin_tiempo_max_vet_b, row, 3)
+        row += 1
+        
+        # Subsección: Llegadas de clientes
+        lbl_lleg = QLabel("<span style='color:red;'>Llegadas de Clientes:</span>")
+        lbl_lleg.setFont(font_label)
+        layout.addWidget(lbl_lleg, row, 0)
+        row += 1
+        
+        lbl10 = QLabel("  Tiempo entre llegadas U(min, max):")
+        lbl10.setFont(font_label)
+        layout.addWidget(lbl10, row, 0, 1, 2)
+        self.spin_llegada_min = QSpinBox()
+        self.spin_llegada_min.setMinimum(1)
+        self.spin_llegada_min.setMaximum(100)
+        self.spin_llegada_min.setValue(2)
+        self.spin_llegada_min.setSuffix(" min")
+        self.spin_llegada_min.setFont(font_spin)
+        layout.addWidget(self.spin_llegada_min, row, 2)
+        self.spin_llegada_max = QSpinBox()
+        self.spin_llegada_max.setMinimum(1)
+        self.spin_llegada_max.setMaximum(100)
+        self.spin_llegada_max.setValue(12)
+        self.spin_llegada_max.setSuffix(" min")
+        self.spin_llegada_max.setFont(font_spin)
+        layout.addWidget(self.spin_llegada_max, row, 3)
+        row += 1
+        
+        # Subsección: Tiempo para refrigerios (el único parámetro configurable)
+        lbl_refrig = QLabel("<span style='color:red;'>Refrigerios:</span>")
+        lbl_refrig.setFont(font_label)
+        layout.addWidget(lbl_refrig, row, 0)
+        row += 1
+        
+        lbl12 = QLabel("  Tiempo para refrigerio (min):")
+        lbl12.setFont(font_label)
+        layout.addWidget(lbl12, row, 0, 1, 2)
+        self.spin_tiempo_refrig = QSpinBox()
+        self.spin_tiempo_refrig.setMinimum(1)
+        self.spin_tiempo_refrig.setMaximum(120)
+        self.spin_tiempo_refrig.setValue(30)
+        self.spin_tiempo_refrig.setSuffix(" min")
+        self.spin_tiempo_refrig.setFont(font_spin)
+        layout.addWidget(self.spin_tiempo_refrig, row, 2)
+        row += 1
         
         # Separador
         lbl_sep = QLabel("<b>Filtros Vector de Estado:</b>")
         font_sep = QFont()
-        font_sep.setPointSize(14)
+        font_sep.setPointSize(13)
         font_sep.setBold(True)
         lbl_sep.setFont(font_sep)
-        layout.addWidget(lbl_sep, 3, 0, 1, 2)
+        layout.addWidget(lbl_sep, row, 0, 1, 4)
+        row += 1
         
-        # Fila 4: Hora inicio (j)
-        row4_layout = QHBoxLayout()
-        lbl4 = QLabel("Desde hora (j) en minutos:")
-        lbl4.setFont(font_label)
-        row4_layout.addWidget(lbl4)
+        # Hora inicio (j)
+        lbl14 = QLabel("Desde hora (j) en minutos:")
+        lbl14.setFont(font_label)
+        layout.addWidget(lbl14, row, 0)
         self.spin_hora_inicio = QSpinBox()
         self.spin_hora_inicio.setMinimum(0)
         self.spin_hora_inicio.setMaximum(2000)
         self.spin_hora_inicio.setValue(0)
         self.spin_hora_inicio.setSuffix(" min")
-        self.spin_hora_inicio.setMinimumHeight(30)
+        self.spin_hora_inicio.setMinimumHeight(28)
         self.spin_hora_inicio.setFont(font_spin)
-        row4_layout.addWidget(self.spin_hora_inicio)
-        layout.addLayout(row4_layout, 4, 0, 1, 2)
+        layout.addWidget(self.spin_hora_inicio, row, 1)
         
-        # Fila 5: Cantidad de filas (i)
-        row5_layout = QHBoxLayout()
-        lbl5 = QLabel("Mostrar (i) filas:")
-        lbl5.setFont(font_label)
-        row5_layout.addWidget(lbl5)
+        # Cantidad de filas (i)
+        lbl15 = QLabel("Mostrar (i) filas:")
+        lbl15.setFont(font_label)
+        layout.addWidget(lbl15, row, 2)
         self.spin_num_filas = QSpinBox()
         self.spin_num_filas.setMinimum(1)
         self.spin_num_filas.setMaximum(10000)
         self.spin_num_filas.setValue(50)
         self.spin_num_filas.setSuffix(" filas")
-        self.spin_num_filas.setMinimumHeight(30)
+        self.spin_num_filas.setMinimumHeight(28)
         self.spin_num_filas.setFont(font_spin)
-        row5_layout.addWidget(self.spin_num_filas)
-        layout.addLayout(row5_layout, 5, 0, 1, 2)
+        layout.addWidget(self.spin_num_filas, row, 3)
+        row += 1
         
         # Botones
         btn_layout = QHBoxLayout()
@@ -288,7 +446,7 @@ class PeluqueriaVIPApp(QMainWindow):
         self.btn_limpiar.clicked.connect(self.limpiar_resultados)
         btn_layout.addWidget(self.btn_limpiar)
         
-        layout.addLayout(btn_layout, 6, 0, 1, 2)
+        layout.addLayout(btn_layout, row, 0, 1, 5)
         
         group.setLayout(layout)
         return group
@@ -503,35 +661,69 @@ class PeluqueriaVIPApp(QMainWindow):
         widget = QWidget()
         layout = QVBoxLayout()
         
-        info_text = QTextEdit()
-        info_text.setReadOnly(True)
-        info_text.setHtml("""
+        self.info_text = QTextEdit()
+        self.info_text.setReadOnly(True)
+        self._actualizar_info_modelo()
+        
+        layout.addWidget(self.info_text)
+        widget.setLayout(layout)
+        return widget
+    
+    def _actualizar_info_modelo(self):
+        """Actualiza la información del modelo con los valores actuales"""
+        # Obtener valores actuales de los controles parametrizables (si existen)
+        prob_apr = self.spin_prob_aprendiz.value() if hasattr(self, 'spin_prob_aprendiz') else 15
+        t_min_apr = self.spin_tiempo_min_apr.value() if hasattr(self, 'spin_tiempo_min_apr') else 20
+        t_max_apr = self.spin_tiempo_max_apr.value() if hasattr(self, 'spin_tiempo_max_apr') else 30
+        
+        prob_vet_a = self.spin_prob_vet_a.value() if hasattr(self, 'spin_prob_vet_a') else 45
+        t_min_vet_a = self.spin_tiempo_min_vet_a.value() if hasattr(self, 'spin_tiempo_min_vet_a') else 11
+        t_max_vet_a = self.spin_tiempo_max_vet_a.value() if hasattr(self, 'spin_tiempo_max_vet_a') else 13
+        
+        # Calcular probabilidad del Veterano B (depende de las otras dos)
+        prob_vet_b = 100 - prob_apr - prob_vet_a
+        t_min_vet_b = self.spin_tiempo_min_vet_b.value() if hasattr(self, 'spin_tiempo_min_vet_b') else 12
+        t_max_vet_b = self.spin_tiempo_max_vet_b.value() if hasattr(self, 'spin_tiempo_max_vet_b') else 18
+        
+        lleg_min = self.spin_llegada_min.value() if hasattr(self, 'spin_llegada_min') else 2
+        lleg_max = self.spin_llegada_max.value() if hasattr(self, 'spin_llegada_max') else 12
+        
+        t_refrig = self.spin_tiempo_refrig.value() if hasattr(self, 'spin_tiempo_refrig') else 30
+        
+        # Valores CONSTANTES (NO parametrizables - valores fijos del enunciado)
+        tarifa_apr = 18000
+        tarifa_vet_a = 32500
+        tarifa_vet_b = 32500
+        jornada = 8
+        costo_refrig = 5500
+        
+        html_content = f"""
         <h2>📋 Modelo de Simulación - Peluquería VIP</h2>
         
-        <h3>🧑‍💼 Peluqueros (Parámetros en ROJO son configurables):</h3>
+        <h3>🧑‍💼 Peluqueros:</h3>
         <ul>
-            <li><b>Aprendiz:</b> Atiende <span style='color:red'>15%</span> de clientes, 
-                U(<span style='color:red'>20, 30</span>) min, 
-                $<span style='color:red'>18,000</span> por corte</li>
-            <li><b>Veterano A:</b> Atiende <span style='color:red'>45%</span> de clientes, 
-                U(<span style='color:red'>11, 13</span>) min, 
-                $<span style='color:red'>32,500</span> por corte</li>
-            <li><b>Veterano B:</b> Atiende <span style='color:red'>40%</span> de clientes, 
-                U(<span style='color:red'>12, 18</span>) min, 
-                $<span style='color:red'>32,500</span> por corte</li>
+            <li><b>Aprendiz:</b> Atiende <span style='color:red;font-weight:bold'>{prob_apr}%</span> de clientes, 
+                U(<span style='color:red;font-weight:bold'>{t_min_apr}, {t_max_apr}</span>) min, 
+                $<span style='font-weight:bold'>{tarifa_apr:,}</span> por corte <span style='color:green;'>(FIJO)</span></li>
+            <li><b>Veterano A:</b> Atiende <span style='color:red;font-weight:bold'>{prob_vet_a}%</span> de clientes, 
+                U(<span style='color:red;font-weight:bold'>{t_min_vet_a}, {t_max_vet_a}</span>) min, 
+                $<span style='font-weight:bold'>{tarifa_vet_a:,}</span> por corte <span style='color:green;'>(FIJO)</span></li>
+            <li><b>Veterano B:</b> Atiende <span style='color:green;font-weight:bold'>{prob_vet_b}%</span> de clientes <span style='color:green;'>(CALCULADO = 100% - {prob_apr}% - {prob_vet_a}%)</span>, 
+                U(<span style='color:red;font-weight:bold'>{t_min_vet_b}, {t_max_vet_b}</span>) min, 
+                $<span style='font-weight:bold'>{tarifa_vet_b:,}</span> por corte <span style='color:green;'>(FIJO)</span></li>
         </ul>
         
         <h3>👥 Llegada de Clientes:</h3>
         <ul>
-            <li>Tiempo entre llegadas: U(<span style='color:red'>2, 12</span>) minutos</li>
-            <li>Se receptan durante <span style='color:red'>8 horas</span> (<span style='color:red'>480</span> minutos)</li>
+            <li>Tiempo entre llegadas: U(<span style='color:red;font-weight:bold'>{lleg_min}, {lleg_max}</span>) minutos</li>
+            <li>Se receptan durante <span style='font-weight:bold'>{jornada} horas</span> (<span style='font-weight:bold'>{jornada*60}</span> minutos) <span style='color:green;'>(FIJO)</span></li>
             <li>Se trabaja hasta que no queden clientes</li>
         </ul>
         
         <h3>🥤 Política de Refrigerios:</h3>
         <ul>
-            <li>Si un cliente espera más de <span style='color:red'>30 minutos</span>, recibe un refrigerio</li>
-            <li>Costo del refrigerio: $<span style='color:red'>5,500</span></li>
+            <li>Si un cliente espera más de <span style='color:red;font-weight:bold'>{t_refrig} minutos</span>, recibe un refrigerio</li>
+            <li>Costo del refrigerio: $<span style='font-weight:bold'>{costo_refrig:,}</span> <span style='color:green;'>(FIJO)</span></li>
             <li>El cliente puede seguir esperando con su bebida</li>
         </ul>
         
@@ -562,7 +754,7 @@ class PeluqueriaVIPApp(QMainWindow):
         <p><b>Fórmula:</b> Ganancia = Recaudación - Costo_Refrigerios</p>
         <ul>
             <li>Recaudación = Σ(Tarifa × Clientes_Atendidos)</li>
-            <li>Costo_Refrigerios = N_Refrigerios × $5,500</li>
+            <li>Costo_Refrigerios = N_Refrigerios × ${costo_refrig:,}</li>
         </ul>
         
         <h3>❓ Preguntas a Responder:</h3>
@@ -575,10 +767,10 @@ class PeluqueriaVIPApp(QMainWindow):
         <h3>🎲 Método de Simulación:</h3>
         <p>Se utiliza simulación por <b>eventos discretos</b> donde se modelan:</p>
         <ul>
-            <li><b>Llegadas de clientes:</b> Usando RND para tiempo entre llegadas U(2,12)</li>
+            <li><b>Llegadas de clientes:</b> Usando RND para tiempo entre llegadas U({lleg_min},{lleg_max})</li>
             <li><b>Asignación a peluqueros:</b> Usando RND con probabilidades acumuladas</li>
             <li><b>Tiempo de servicio:</b> Usando RND para U(min, max) según peluquero</li>
-            <li><b>Entrega de refrigerios:</b> Cuando tiempo_espera > 30 minutos</li>
+            <li><b>Entrega de refrigerios:</b> Cuando tiempo_espera > {t_refrig} minutos</li>
         </ul>
         
         <h3>📊 Vector de Estado:</h3>
@@ -602,11 +794,33 @@ class PeluqueriaVIPApp(QMainWindow):
         </ul>
         
         <p><i>La última fila siempre se muestra (fondo amarillo) independiente de los filtros.</i></p>
-        """)
         
-        layout.addWidget(info_text)
-        widget.setLayout(layout)
-        return widget
+        <p style='background-color:#fff3cd; padding:10px; border-radius:5px; margin-top:20px;'>
+        <b>💡 Nota:</b> Los valores en <span style='color:red;font-weight:bold'>ROJO</span> son <b>parametrizables</b> 
+        desde el panel de configuración superior. Los valores en <span style='color:green;font-weight:bold'>VERDE (FIJO)</span> 
+        son <b>constantes del enunciado</b> y NO se pueden modificar.
+        </p>
+        """
+        
+        if hasattr(self, 'info_text'):
+            self.info_text.setHtml(html_content)
+    
+    def _actualizar_prob_vet_b(self):
+        """Actualiza la probabilidad del Veterano B basándose en las otras dos"""
+        if hasattr(self, 'lbl_prob_vet_b'):
+            prob_apr = self.spin_prob_aprendiz.value()
+            prob_vet_a = self.spin_prob_vet_a.value()
+            prob_vet_b = 100 - prob_apr - prob_vet_a
+            
+            # Validar que la probabilidad sea válida
+            if prob_vet_b < 0:
+                self.lbl_prob_vet_b.setText(
+                    f"<span style='color:red; font-weight:bold;'>ERROR: {prob_vet_b} %</span> (Suma > 100%)"
+                )
+            else:
+                self.lbl_prob_vet_b.setText(
+                    f"<span style='color:green; font-weight:bold;'>{prob_vet_b} %</span> (Calculada = 100% - {prob_apr}% - {prob_vet_a}%)"
+                )
     
     def _crear_label_resultado(self, texto_inicial):
         """Crea un label para mostrar resultados"""
@@ -629,6 +843,21 @@ class PeluqueriaVIPApp(QMainWindow):
         tiempo_max = self.spin_tiempo_max.value()
         max_iter = self.spin_max_iter.value()
         
+        # Recoger parámetros del modelo desde la UI
+        params_modelo = {
+            'prob_aprendiz': self.spin_prob_aprendiz.value() / 100.0,
+            'tiempo_min_aprendiz': self.spin_tiempo_min_apr.value(),
+            'tiempo_max_aprendiz': self.spin_tiempo_max_apr.value(),
+            'prob_veterano_a': self.spin_prob_vet_a.value() / 100.0,
+            'tiempo_min_vet_a': self.spin_tiempo_min_vet_a.value(),
+            'tiempo_max_vet_a': self.spin_tiempo_max_vet_a.value(),
+            'tiempo_min_vet_b': self.spin_tiempo_min_vet_b.value(),
+            'tiempo_max_vet_b': self.spin_tiempo_max_vet_b.value(),
+            'tiempo_llegada_min': self.spin_llegada_min.value(),
+            'tiempo_llegada_max': self.spin_llegada_max.value(),
+            'tiempo_refrigerio': self.spin_tiempo_refrig.value()
+        }
+        
         # Deshabilitar controles
         self.btn_simular.setEnabled(False)
         self.spin_dias.setEnabled(False)
@@ -641,7 +870,7 @@ class PeluqueriaVIPApp(QMainWindow):
         self.progress_bar.setMaximum(num_dias)
         
         # Crear y ejecutar thread
-        self.sim_thread = SimulacionThread(num_dias, tiempo_max, max_iter)
+        self.sim_thread = SimulacionThread(num_dias, tiempo_max, max_iter, params_modelo)
         self.sim_thread.progreso.connect(self._actualizar_progreso)
         self.sim_thread.completado.connect(self._mostrar_resultados)
         self.sim_thread.dia_completado.connect(self._guardar_ultima_simulacion)

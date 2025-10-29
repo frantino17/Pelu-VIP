@@ -134,11 +134,56 @@ class FilaVectorEstado:
 class SimulacionPeluqueria:
     """Motor de simulación de la peluquería"""
     
-    JORNADA_LABORAL = 8 * 60  # 8 horas en minutos
-    TIEMPO_REFRIGERIO = 30  # minutos
-    COSTO_REFRIGERIO = 5500
-    
-    def __init__(self):
+    def __init__(self, 
+                 # Parámetros de peluqueros (solo tiempos y probabilidades parametrizables)
+                 prob_aprendiz=0.15, tiempo_min_aprendiz=20, tiempo_max_aprendiz=30,
+                 prob_veterano_a=0.45, tiempo_min_vet_a=11, tiempo_max_vet_a=13,
+                 tiempo_min_vet_b=12, tiempo_max_vet_b=18,
+                 # Parámetros de llegadas
+                 tiempo_llegada_min=2, tiempo_llegada_max=12,
+                 # Parámetros de refrigerios
+                 tiempo_refrigerio=30):
+        """
+        Inicializa la simulación con parámetros configurables
+        
+        Args:
+            prob_aprendiz: Probabilidad de asignación al aprendiz (0-1)
+            tiempo_min_aprendiz: Tiempo mínimo de servicio del aprendiz (minutos)
+            tiempo_max_aprendiz: Tiempo máximo de servicio del aprendiz (minutos)
+            prob_veterano_a: Probabilidad de asignación al veterano A (0-1)
+            tiempo_min_vet_a: Tiempo mínimo de servicio del veterano A (minutos)
+            tiempo_max_vet_a: Tiempo máximo de servicio del veterano A (minutos)
+            tiempo_min_vet_b: Tiempo mínimo de servicio del veterano B (minutos)
+            tiempo_max_vet_b: Tiempo máximo de servicio del veterano B (minutos)
+            tiempo_llegada_min: Tiempo mínimo entre llegadas (minutos)
+            tiempo_llegada_max: Tiempo máximo entre llegadas (minutos)
+            tiempo_refrigerio: Tiempo de espera para dar refrigerio (minutos)
+        """
+        # Constantes NO PARAMETRIZABLES (valores fijos del enunciado)
+        TARIFA_APRENDIZ = 18000
+        TARIFA_VETERANO_A = 32500
+        TARIFA_VETERANO_B = 32500
+        JORNADA_LABORAL_HORAS = 8
+        COSTO_REFRIGERIO = 5500
+        
+        # Calcular probabilidad del Veterano B (depende de las otras dos)
+        # prob_vet_b = 1 - prob_aprendiz - prob_veterano_a
+        prob_veterano_b = 1.0 - prob_aprendiz - prob_veterano_a
+        
+        # Guardar parámetros de configuración
+        self.JORNADA_LABORAL = JORNADA_LABORAL_HORAS * 60  # Convertir a minutos (480 min = 8 horas)
+        self.TIEMPO_REFRIGERIO = tiempo_refrigerio
+        self.COSTO_REFRIGERIO = COSTO_REFRIGERIO
+        self.TIEMPO_LLEGADA_MIN = tiempo_llegada_min
+        self.TIEMPO_LLEGADA_MAX = tiempo_llegada_max
+        
+        # Parámetros de peluqueros
+        self.params_peluqueros = {
+            'aprendiz': (prob_aprendiz, tiempo_min_aprendiz, tiempo_max_aprendiz, TARIFA_APRENDIZ),
+            'veterano_a': (prob_veterano_a, tiempo_min_vet_a, tiempo_max_vet_a, TARIFA_VETERANO_A),
+            'veterano_b': (prob_veterano_b, tiempo_min_vet_b, tiempo_max_vet_b, TARIFA_VETERANO_B)
+        }
+        
         self.peluqueros: List[Peluquero] = []
         self.clientes: List[Cliente] = []
         self.cola_espera: List[Cliente] = []
@@ -167,11 +212,15 @@ class SimulacionPeluqueria:
         self._inicializar_peluqueros()
     
     def _inicializar_peluqueros(self):
-        """Inicializa los tres peluqueros"""
+        """Inicializa los tres peluqueros con parámetros configurables"""
+        prob_apr, t_min_apr, t_max_apr, tarifa_apr = self.params_peluqueros['aprendiz']
+        prob_vet_a, t_min_vet_a, t_max_vet_a, tarifa_vet_a = self.params_peluqueros['veterano_a']
+        prob_vet_b, t_min_vet_b, t_max_vet_b, tarifa_vet_b = self.params_peluqueros['veterano_b']
+        
         self.peluqueros = [
-            Peluquero(TipoPeluquero.APRENDIZ, 0.15, 20, 30, 18000),
-            Peluquero(TipoPeluquero.VETERANO_A, 0.45, 11, 13, 32500),
-            Peluquero(TipoPeluquero.VETERANO_B, 0.40, 12, 18, 32500)
+            Peluquero(TipoPeluquero.APRENDIZ, prob_apr, t_min_apr, t_max_apr, tarifa_apr),
+            Peluquero(TipoPeluquero.VETERANO_A, prob_vet_a, t_min_vet_a, t_max_vet_a, tarifa_vet_a),
+            Peluquero(TipoPeluquero.VETERANO_B, prob_vet_b, t_min_vet_b, t_max_vet_b, tarifa_vet_b)
         ]
     
     def reiniciar(self):
@@ -209,7 +258,7 @@ class SimulacionPeluqueria:
     def _generar_llegada_cliente(self):
         """Genera un nuevo cliente"""
         rnd_llegada = random.random()
-        tiempo_entre_llegadas = 2 + rnd_llegada * (12 - 2)  # U(2, 12)
+        tiempo_entre_llegadas = self.TIEMPO_LLEGADA_MIN + rnd_llegada * (self.TIEMPO_LLEGADA_MAX - self.TIEMPO_LLEGADA_MIN)
         tiempo_llegada = self.tiempo_actual + tiempo_entre_llegadas
         
         self.ultimo_rnd['llegada'] = rnd_llegada
@@ -262,9 +311,12 @@ class SimulacionPeluqueria:
     
     def _seleccionar_peluquero_con_rnd(self, rnd: float) -> Peluquero:
         """Selecciona un peluquero basado en un RND dado"""
-        if rnd <= 0.15:
+        prob_apr = self.peluqueros[0].probabilidad
+        prob_vet_a = self.peluqueros[1].probabilidad
+        
+        if rnd <= prob_apr:
             return self.peluqueros[0]  # Aprendiz
-        elif rnd <= 0.60:  # 0.15 + 0.45
+        elif rnd <= prob_apr + prob_vet_a:
             return self.peluqueros[1]  # Veterano A
         else:
             return self.peluqueros[2]  # Veterano B
