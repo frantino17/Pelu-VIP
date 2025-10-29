@@ -5,7 +5,7 @@ Motor de simulación con eventos discretos
 
 import random
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Dict
 from enum import Enum
 
 
@@ -129,6 +129,9 @@ class FilaVectorEstado:
     tiempo_fin_aprendiz: float
     tiempo_fin_veterano_a: float
     tiempo_fin_veterano_b: float
+    # Snapshot de clientes (lista ordenada por id). Cada elemento es un dict:
+    # {'id': int, 'estado': str, 'hora_inicio_espera': float, 'tiempo_espera': float}
+    clientes_snapshot: List[Dict] = field(default_factory=list)
 
 
 class SimulacionPeluqueria:
@@ -142,7 +145,14 @@ class SimulacionPeluqueria:
                  # Parámetros de llegadas
                  tiempo_llegada_min=2, tiempo_llegada_max=12,
                  # Parámetros de refrigerios
-                 tiempo_refrigerio=30):
+                 tiempo_refrigerio=30,
+                 # Opcionales para compatibilidad: tarifas, jornada, costo refrigerio, prob vet b
+                 tarifa_aprendiz: Optional[float]=None,
+                 tarifa_vet_a: Optional[float]=None,
+                 tarifa_vet_b: Optional[float]=None,
+                 jornada_laboral_horas: Optional[int]=None,
+                 costo_refrigerio: Optional[float]=None,
+                 prob_veterano_b: Optional[float]=None):
         """
         Inicializa la simulación con parámetros configurables
         
@@ -160,15 +170,15 @@ class SimulacionPeluqueria:
             tiempo_refrigerio: Tiempo de espera para dar refrigerio (minutos)
         """
         # Constantes NO PARAMETRIZABLES (valores fijos del enunciado)
-        TARIFA_APRENDIZ = 18000
-        TARIFA_VETERANO_A = 32500
-        TARIFA_VETERANO_B = 32500
-        JORNADA_LABORAL_HORAS = 8
-        COSTO_REFRIGERIO = 5500
-        
+        # Valores por defecto (permite sobrescribir desde parámetros opcionales)
+        TARIFA_APRENDIZ = 18000 if tarifa_aprendiz is None else tarifa_aprendiz
+        TARIFA_VETERANO_A = 32500 if tarifa_vet_a is None else tarifa_vet_a
+        TARIFA_VETERANO_B = 32500 if tarifa_vet_b is None else tarifa_vet_b
+        JORNADA_LABORAL_HORAS = 8 if jornada_laboral_horas is None else jornada_laboral_horas
+        COSTO_REFRIGERIO = 5500 if costo_refrigerio is None else costo_refrigerio
+
         # Calcular probabilidad del Veterano B (depende de las otras dos)
-        # prob_vet_b = 1 - prob_aprendiz - prob_veterano_a
-        prob_veterano_b = 1.0 - prob_aprendiz - prob_veterano_a
+        prob_veterano_b = prob_veterano_b if prob_veterano_b is not None else (1.0 - prob_aprendiz - prob_veterano_a)
         
         # Guardar parámetros de configuración
         self.JORNADA_LABORAL = JORNADA_LABORAL_HORAS * 60  # Convertir a minutos (480 min = 8 horas)
@@ -460,7 +470,35 @@ class SimulacionPeluqueria:
             tiempo_fin_veterano_a=veterano_a.tiempo_fin_atencion,
             tiempo_fin_veterano_b=veterano_b.tiempo_fin_atencion
         )
-        
+        # Construir snapshot de clientes: incluir todos los clientes creados hasta el momento
+        clientes_snapshot = []
+        for c in self.clientes:
+            # Determinar estado del cliente
+            if c.tiempo_fin_atencion > 0 and c.tiempo_fin_atencion <= self.tiempo_actual:
+                estado = 'Atendido'
+            elif c.tiempo_inicio_atencion > 0 and c.tiempo_inicio_atencion <= self.tiempo_actual:
+                # Está siendo atendido o ya inició atención
+                if c.tiempo_fin_atencion > self.tiempo_actual:
+                    estado = 'En Servicio'
+                else:
+                    estado = 'Atendido'
+            else:
+                # No inició atención aún
+                # Ver si está en cola_espera
+                estado = 'Esperando' if c in self.cola_espera else 'Pendiente'
+
+            hora_inicio_espera = c.tiempo_llegada
+            tiempo_espera = c.tiempo_espera if c.tiempo_espera else 0.0
+
+            clientes_snapshot.append({
+                'id': c.id,
+                'estado': estado,
+                'hora_inicio_espera': hora_inicio_espera,
+                'tiempo_espera': tiempo_espera
+            })
+
+        fila.clientes_snapshot = clientes_snapshot
+
         self.vector_estado.append(fila)
     
     def simular_dia(self, tiempo_max=None, max_iteraciones=100000):

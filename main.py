@@ -19,6 +19,7 @@ from simulacion import SimulacionPeluqueria, EstadoPeluquero
 try:
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
     OPENPYXL_AVAILABLE = True
 except ImportError:
     OPENPYXL_AVAILABLE = False
@@ -58,6 +59,9 @@ class SimulacionThread(QThread):
 
 class PeluqueriaVIPApp(QMainWindow):
     """Ventana principal de la aplicación"""
+    
+    # Límite máximo de clientes a mostrar como columnas (para evitar tablas enormes)
+    MAX_CLIENTES_COLUMNAS = 10
     
     def __init__(self):
         super().__init__()
@@ -261,6 +265,7 @@ class PeluqueriaVIPApp(QMainWindow):
         self.spin_tiempo_min_apr.setValue(20)
         self.spin_tiempo_min_apr.setMinimumHeight(18)
         self.spin_tiempo_min_apr.setFont(font_spin)
+        self.spin_tiempo_min_apr.valueChanged.connect(lambda: self._validar_rango_tiempo('aprendiz'))
         layout.addWidget(self.spin_tiempo_min_apr, row, 3)
         self.spin_tiempo_max_apr = QSpinBox()
         self.spin_tiempo_max_apr.setMinimum(1)
@@ -268,6 +273,7 @@ class PeluqueriaVIPApp(QMainWindow):
         self.spin_tiempo_max_apr.setValue(30)
         self.spin_tiempo_max_apr.setMinimumHeight(18)
         self.spin_tiempo_max_apr.setFont(font_spin)
+        self.spin_tiempo_max_apr.valueChanged.connect(lambda: self._validar_rango_tiempo('aprendiz'))
         layout.addWidget(self.spin_tiempo_max_apr, row, 4)
         row += 1
         
@@ -299,6 +305,7 @@ class PeluqueriaVIPApp(QMainWindow):
         self.spin_tiempo_min_vet_a.setValue(11)
         self.spin_tiempo_min_vet_a.setMinimumHeight(18)
         self.spin_tiempo_min_vet_a.setFont(font_spin)
+        self.spin_tiempo_min_vet_a.valueChanged.connect(lambda: self._validar_rango_tiempo('vet_a'))
         layout.addWidget(self.spin_tiempo_min_vet_a, row, 3)
         self.spin_tiempo_max_vet_a = QSpinBox()
         self.spin_tiempo_max_vet_a.setMinimum(1)
@@ -306,6 +313,7 @@ class PeluqueriaVIPApp(QMainWindow):
         self.spin_tiempo_max_vet_a.setValue(13)
         self.spin_tiempo_max_vet_a.setMinimumHeight(18)
         self.spin_tiempo_max_vet_a.setFont(font_spin)
+        self.spin_tiempo_max_vet_a.valueChanged.connect(lambda: self._validar_rango_tiempo('vet_a'))
         layout.addWidget(self.spin_tiempo_max_vet_a, row, 4)
         row += 1
         
@@ -333,6 +341,7 @@ class PeluqueriaVIPApp(QMainWindow):
         self.spin_tiempo_min_vet_b.setValue(12)
         self.spin_tiempo_min_vet_b.setMinimumHeight(18)
         self.spin_tiempo_min_vet_b.setFont(font_spin)
+        self.spin_tiempo_min_vet_b.valueChanged.connect(lambda: self._validar_rango_tiempo('vet_b'))
         layout.addWidget(self.spin_tiempo_min_vet_b, row, 2)
         self.spin_tiempo_max_vet_b = QSpinBox()
         self.spin_tiempo_max_vet_b.setMinimum(1)
@@ -340,6 +349,7 @@ class PeluqueriaVIPApp(QMainWindow):
         self.spin_tiempo_max_vet_b.setValue(18)
         self.spin_tiempo_max_vet_b.setMinimumHeight(18)
         self.spin_tiempo_max_vet_b.setFont(font_spin)
+        self.spin_tiempo_max_vet_b.valueChanged.connect(lambda: self._validar_rango_tiempo('vet_b'))
         layout.addWidget(self.spin_tiempo_max_vet_b, row, 3)
         row += 1
         
@@ -359,6 +369,7 @@ class PeluqueriaVIPApp(QMainWindow):
         self.spin_llegada_min.setSuffix(" min")
         self.spin_llegada_min.setMinimumHeight(18)
         self.spin_llegada_min.setFont(font_spin)
+        self.spin_llegada_min.valueChanged.connect(lambda: self._validar_rango_tiempo('llegada'))
         layout.addWidget(self.spin_llegada_min, row, 2)
         self.spin_llegada_max = QSpinBox()
         self.spin_llegada_max.setMinimum(1)
@@ -367,6 +378,7 @@ class PeluqueriaVIPApp(QMainWindow):
         self.spin_llegada_max.setSuffix(" min")
         self.spin_llegada_max.setMinimumHeight(18)
         self.spin_llegada_max.setFont(font_spin)
+        self.spin_llegada_max.valueChanged.connect(lambda: self._validar_rango_tiempo('llegada'))
         layout.addWidget(self.spin_llegada_max, row, 3)
         row += 1
         
@@ -459,7 +471,8 @@ class PeluqueriaVIPApp(QMainWindow):
         # Info label (más compacto)
         info_label = QLabel(
             "<span style='font-size:10px;'>Vector de Estado: Muestra <b>i</b> iteraciones desde la hora <b>j</b> + última fila siempre. "
-            "Modifica los parámetros arriba y presiona 'Actualizar Vector'.</span>"
+            "Modifica los parámetros arriba y presiona 'Actualizar Vector'. "
+            "<b>Nota:</b> Se muestran máximo los primeros 10 clientes como columnas.</span>"
         )
         info_label.setWordWrap(True)
         info_label.setStyleSheet("background-color: #e3f2fd; padding: 5px; border-radius: 3px;")
@@ -484,6 +497,7 @@ class PeluqueriaVIPApp(QMainWindow):
             "Estado\nVet B", "Cliente\nVet B", "Cola\nVet B",
             "Clientes\nAtendidos", "Recaud.\nAcum", "Costo\nRefrig", "Refrig.\nEntregados", "Max\nCola"
         ]
+        # Las columnas por defecto estarán, luego se agregarán columnas dinámicas por cliente al actualizar
         
         self.tabla_vector.setColumnCount(len(columnas))
         self.tabla_vector.setHorizontalHeaderLabels(columnas)
@@ -822,6 +836,60 @@ class PeluqueriaVIPApp(QMainWindow):
                     f"<span style='color:green; font-weight:bold;'>{prob_vet_b} %</span> (Calculada = 100% - {prob_apr}% - {prob_vet_a}%)"
                 )
     
+    def _validar_rango_tiempo(self, tipo):
+        """
+        Valida que el tiempo mínimo no sea mayor que el tiempo máximo en tiempo real.
+        Muestra un mensaje temporal si hay error.
+        """
+        if tipo == 'aprendiz':
+            min_val = self.spin_tiempo_min_apr.value()
+            max_val = self.spin_tiempo_max_apr.value()
+            nombre = "Aprendiz"
+        elif tipo == 'vet_a':
+            min_val = self.spin_tiempo_min_vet_a.value()
+            max_val = self.spin_tiempo_max_vet_a.value()
+            nombre = "Veterano A"
+        elif tipo == 'vet_b':
+            min_val = self.spin_tiempo_min_vet_b.value()
+            max_val = self.spin_tiempo_max_vet_b.value()
+            nombre = "Veterano B"
+        elif tipo == 'llegada':
+            min_val = self.spin_llegada_min.value()
+            max_val = self.spin_llegada_max.value()
+            nombre = "Llegadas"
+        else:
+            return
+        
+        # Validar el rango
+        if min_val > max_val:
+            # Cambiar estilo para indicar error
+            if tipo == 'aprendiz':
+                self.spin_tiempo_min_apr.setStyleSheet("QSpinBox { background-color: #ffcccc; }")
+                self.spin_tiempo_max_apr.setStyleSheet("QSpinBox { background-color: #ffcccc; }")
+            elif tipo == 'vet_a':
+                self.spin_tiempo_min_vet_a.setStyleSheet("QSpinBox { background-color: #ffcccc; }")
+                self.spin_tiempo_max_vet_a.setStyleSheet("QSpinBox { background-color: #ffcccc; }")
+            elif tipo == 'vet_b':
+                self.spin_tiempo_min_vet_b.setStyleSheet("QSpinBox { background-color: #ffcccc; }")
+                self.spin_tiempo_max_vet_b.setStyleSheet("QSpinBox { background-color: #ffcccc; }")
+            elif tipo == 'llegada':
+                self.spin_llegada_min.setStyleSheet("QSpinBox { background-color: #ffcccc; }")
+                self.spin_llegada_max.setStyleSheet("QSpinBox { background-color: #ffcccc; }")
+        else:
+            # Restaurar estilo normal
+            if tipo == 'aprendiz':
+                self.spin_tiempo_min_apr.setStyleSheet("")
+                self.spin_tiempo_max_apr.setStyleSheet("")
+            elif tipo == 'vet_a':
+                self.spin_tiempo_min_vet_a.setStyleSheet("")
+                self.spin_tiempo_max_vet_a.setStyleSheet("")
+            elif tipo == 'vet_b':
+                self.spin_tiempo_min_vet_b.setStyleSheet("")
+                self.spin_tiempo_max_vet_b.setStyleSheet("")
+            elif tipo == 'llegada':
+                self.spin_llegada_min.setStyleSheet("")
+                self.spin_llegada_max.setStyleSheet("")
+    
     def _crear_label_resultado(self, texto_inicial):
         """Crea un label para mostrar resultados"""
         lbl = QLabel(texto_inicial)
@@ -837,8 +905,86 @@ class PeluqueriaVIPApp(QMainWindow):
         lbl.setWordWrap(True)
         return lbl
     
+    def _validar_parametros(self):
+        """
+        Valida todos los parámetros de entrada antes de ejecutar la simulación.
+        Retorna (bool, str): (es_valido, mensaje_error)
+        """
+        errores = []
+        
+        # Validar tiempos mínimos y máximos para cada tipo de peluquero
+        if self.spin_tiempo_min_apr.value() > self.spin_tiempo_max_apr.value():
+            errores.append("❌ Aprendiz: El tiempo mínimo no puede ser mayor que el tiempo máximo")
+        
+        if self.spin_tiempo_min_vet_a.value() > self.spin_tiempo_max_vet_a.value():
+            errores.append("❌ Veterano A: El tiempo mínimo no puede ser mayor que el tiempo máximo")
+        
+        if self.spin_tiempo_min_vet_b.value() > self.spin_tiempo_max_vet_b.value():
+            errores.append("❌ Veterano B: El tiempo mínimo no puede ser mayor que el tiempo máximo")
+        
+        # Validar tiempos de llegada
+        if self.spin_llegada_min.value() > self.spin_llegada_max.value():
+            errores.append("❌ Llegadas: El tiempo mínimo entre llegadas no puede ser mayor que el máximo")
+        
+        # Validar que los tiempos de servicio sean positivos
+        if self.spin_tiempo_min_apr.value() <= 0:
+            errores.append("❌ Aprendiz: El tiempo mínimo debe ser mayor que 0")
+        if self.spin_tiempo_min_vet_a.value() <= 0:
+            errores.append("❌ Veterano A: El tiempo mínimo debe ser mayor que 0")
+        if self.spin_tiempo_min_vet_b.value() <= 0:
+            errores.append("❌ Veterano B: El tiempo mínimo debe ser mayor que 0")
+        
+        # Validar que los tiempos de llegada sean positivos
+        if self.spin_llegada_min.value() <= 0:
+            errores.append("❌ Llegadas: El tiempo mínimo entre llegadas debe ser mayor que 0")
+        
+        # Validar probabilidades (deben sumar 100%)
+        prob_aprendiz = self.spin_prob_aprendiz.value()
+        prob_vet_a = self.spin_prob_vet_a.value()
+        prob_vet_b = 100 - prob_aprendiz - prob_vet_a
+        
+        if prob_vet_b < 0:
+            errores.append(f"❌ Probabilidades: La suma de Aprendiz ({prob_aprendiz}%) y Veterano A ({prob_vet_a}%) excede el 100%")
+        
+        if prob_vet_b == 0 and prob_aprendiz == 0:
+            errores.append("❌ Probabilidades: Al menos un tipo de peluquero debe tener probabilidad mayor a 0%")
+        
+        # Validar parámetros de simulación
+        if self.spin_dias.value() <= 0:
+            errores.append("❌ Número de días debe ser mayor que 0")
+        
+        if self.spin_tiempo_max.value() <= 0:
+            errores.append("❌ Tiempo máximo por día debe ser mayor que 0")
+        
+        if self.spin_max_iter.value() <= 0:
+            errores.append("❌ Número máximo de iteraciones debe ser mayor que 0")
+        
+        # Validar que el tiempo de refrigerio sea razonable
+        if self.spin_tiempo_refrig.value() <= 0:
+            errores.append("❌ Tiempo de refrigerio debe ser mayor que 0")
+        
+        # Validar parámetros de filtro
+        if self.spin_num_filas.value() <= 0:
+            errores.append("❌ Número de filas a mostrar debe ser mayor que 0")
+        
+        if self.spin_hora_inicio.value() < 0:
+            errores.append("❌ Hora de inicio no puede ser negativa")
+        
+        # Si hay errores, retornar False con los mensajes
+        if errores:
+            mensaje = "Se encontraron los siguientes errores:\n\n" + "\n".join(errores)
+            return False, mensaje
+        
+        return True, ""
+    
     def ejecutar_simulacion(self):
         """Ejecuta la simulación"""
+        # Primero validar todos los parámetros
+        es_valido, mensaje_error = self._validar_parametros()
+        if not es_valido:
+            QMessageBox.warning(self, "Parámetros Inválidos", mensaje_error)
+            return
+        
         num_dias = self.spin_dias.value()
         tiempo_max = self.spin_tiempo_max.value()
         max_iter = self.spin_max_iter.value()
@@ -997,7 +1143,49 @@ class PeluqueriaVIPApp(QMainWindow):
         
         # Obtener filas filtradas
         filas = self.ultima_simulacion.obtener_vector_estado_filtrado(hora_inicio, num_filas)
-        
+        # Determinar clientes únicos presentes en la última simulación para crear columnas
+        clientes_ultimos = []
+        if self.ultima_simulacion and self.ultima_simulacion.clientes:
+            # Ordenar clientes por ID y limitar la cantidad mostrada
+            todos_clientes = sorted(self.ultima_simulacion.clientes, key=lambda c: c.id)
+            clientes_ultimos = todos_clientes[:self.MAX_CLIENTES_COLUMNAS]
+            
+            # Mostrar mensaje informativo si hay más clientes de los que se muestran
+            total_clientes = len(todos_clientes)
+            if total_clientes > self.MAX_CLIENTES_COLUMNAS:
+                print(f"ℹ️  Mostrando {self.MAX_CLIENTES_COLUMNAS} de {total_clientes} clientes totales en el vector de estado")
+
+
+        # Columnas base count
+        base_columnas = 24
+        # Cada cliente añadirá 3 columnas: Estado, Hora inicio espera, Tiempo espera
+        columnas_extra = len(clientes_ultimos) * 3
+
+        total_columnas = base_columnas + columnas_extra
+
+        # Construir headers dinámicos
+        columnas = [
+            "Iter", "Reloj\n(min)", "Evento", 
+            "RND\nLlegada", "RND\nAsig", "RND\nServicio",
+            "Prox.\nLlegada", "Prox.\nFin Apr", "Prox.\nFin VetA", "Prox.\nFin VetB",
+            "Estado\nAprendiz", "Cliente\nAprendiz", "Cola\nAprendiz",
+            "Estado\nVet A", "Cliente\nVet A", "Cola\nVet A",
+            "Estado\nVet B", "Cliente\nVet B", "Cola\nVet B",
+            "Clientes\nAtendidos", "Recaud.\nAcum", "Costo\nRefrig", "Refrig.\nEntregados", "Max\nCola"
+        ]
+
+        # Agregar encabezados por cliente
+        for c in clientes_ultimos:
+            columnas.extend([
+                f"C{c.id} Estado",
+                f"C{c.id} Hora Inicio",
+                f"C{c.id} Tiempo Esp"
+            ])
+
+        # Actualizar columnas en la tabla
+        self.tabla_vector.setColumnCount(len(columnas))
+        self.tabla_vector.setHorizontalHeaderLabels(columnas)
+
         # Actualizar tabla
         self.tabla_vector.setRowCount(len(filas))
         
@@ -1122,6 +1310,32 @@ class PeluqueriaVIPApp(QMainWindow):
             item = QTableWidgetItem(str(fila.max_cola_total))
             item.setFont(font_celda)
             self.tabla_vector.setItem(i, 23, item)
+            
+            # Rellenar columnas por cliente (siempre al final)
+            start_col = 24
+            for idx_c, c in enumerate(clientes_ultimos):
+                # Buscar snapshot del cliente en la fila
+                cliente_info = None
+                for cs in fila.clientes_snapshot:
+                    if cs['id'] == c.id:
+                        cliente_info = cs
+                        break
+
+                estado = cliente_info['estado'] if cliente_info else '-'
+                hora_ini = f"{cliente_info['hora_inicio_espera']:.2f}" if cliente_info else '-'
+                tiempo_esp = f"{cliente_info['tiempo_espera']:.2f}" if cliente_info else '-'
+
+                item = QTableWidgetItem(str(estado))
+                item.setFont(font_celda)
+                self.tabla_vector.setItem(i, start_col + idx_c * 3, item)
+
+                item = QTableWidgetItem(hora_ini)
+                item.setFont(font_celda)
+                self.tabla_vector.setItem(i, start_col + idx_c * 3 + 1, item)
+
+                item = QTableWidgetItem(tiempo_esp)
+                item.setFont(font_celda)
+                self.tabla_vector.setItem(i, start_col + idx_c * 3 + 2, item)
             
             # Colorear última fila
             if es_ultima:
@@ -1385,6 +1599,17 @@ class PeluqueriaVIPApp(QMainWindow):
         hora_inicio = self.spin_hora_inicio.value()
         num_filas = self.spin_num_filas.value()
         filas_vector = self.ultima_simulacion.obtener_vector_estado_filtrado(hora_inicio, num_filas)
+
+        # Clientes para columnas extra (tomar todos los clientes creados en la simulación)
+        # Limitar a MAX_CLIENTES_COLUMNAS para evitar archivos Excel enormes
+        clientes_ultimos = []
+        if self.ultima_simulacion and self.ultima_simulacion.clientes:
+            todos_clientes = sorted(self.ultima_simulacion.clientes, key=lambda c: c.id)
+            clientes_ultimos = todos_clientes[:self.MAX_CLIENTES_COLUMNAS]
+
+        # Agregar headers por cliente en Excel
+        for c in clientes_ultimos:
+            headers_vector.extend([f"C{c.id} Estado", f"C{c.id} Hora Inicio", f"C{c.id} Tiempo Esp"])
         
         # Datos del vector
         for idx, fila in enumerate(filas_vector, start=4):
@@ -1392,53 +1617,53 @@ class PeluqueriaVIPApp(QMainWindow):
             ws_vector.cell(row=idx, column=2).value = fila.reloj
             ws_vector.cell(row=idx, column=2).number_format = '0.00'
             ws_vector.cell(row=idx, column=3).value = fila.evento
-            
+
             # RNDs
             rnd_llegada = fila.rnd_evento.get('llegada', '')
             ws_vector.cell(row=idx, column=4).value = rnd_llegada if rnd_llegada != '' else '-'
             if rnd_llegada != '':
                 ws_vector.cell(row=idx, column=4).number_format = '0.0000'
-            
+
             rnd_asig = fila.rnd_evento.get('asignacion_peluquero', '')
             ws_vector.cell(row=idx, column=5).value = rnd_asig if rnd_asig != '' else '-'
             if rnd_asig != '':
                 ws_vector.cell(row=idx, column=5).number_format = '0.0000'
-            
+
             rnd_serv = fila.rnd_evento.get('tiempo_servicio', '')
             ws_vector.cell(row=idx, column=6).value = rnd_serv if rnd_serv != '' else '-'
             if rnd_serv != '':
                 ws_vector.cell(row=idx, column=6).number_format = '0.0000'
-            
+
             # Próximos eventos
             ws_vector.cell(row=idx, column=7).value = fila.proximo_llegada if fila.proximo_llegada > 0 else '-'
             if fila.proximo_llegada > 0:
                 ws_vector.cell(row=idx, column=7).number_format = '0.00'
-            
+
             ws_vector.cell(row=idx, column=8).value = fila.proximo_fin_aprendiz if fila.proximo_fin_aprendiz > 0 else '-'
             if fila.proximo_fin_aprendiz > 0:
                 ws_vector.cell(row=idx, column=8).number_format = '0.00'
-            
+
             ws_vector.cell(row=idx, column=9).value = fila.proximo_fin_veterano_a if fila.proximo_fin_veterano_a > 0 else '-'
             if fila.proximo_fin_veterano_a > 0:
                 ws_vector.cell(row=idx, column=9).number_format = '0.00'
-            
+
             ws_vector.cell(row=idx, column=10).value = fila.proximo_fin_veterano_b if fila.proximo_fin_veterano_b > 0 else '-'
             if fila.proximo_fin_veterano_b > 0:
                 ws_vector.cell(row=idx, column=10).number_format = '0.00'
-            
+
             # Estados de peluqueros
             ws_vector.cell(row=idx, column=11).value = fila.estado_aprendiz
             ws_vector.cell(row=idx, column=12).value = fila.cliente_aprendiz
             ws_vector.cell(row=idx, column=13).value = fila.cola_aprendiz
-            
+
             ws_vector.cell(row=idx, column=14).value = fila.estado_veterano_a
             ws_vector.cell(row=idx, column=15).value = fila.cliente_veterano_a
             ws_vector.cell(row=idx, column=16).value = fila.cola_veterano_a
-            
+
             ws_vector.cell(row=idx, column=17).value = fila.estado_veterano_b
             ws_vector.cell(row=idx, column=18).value = fila.cliente_veterano_b
             ws_vector.cell(row=idx, column=19).value = fila.cola_veterano_b
-            
+
             # Acumuladores
             ws_vector.cell(row=idx, column=20).value = fila.clientes_atendidos
             ws_vector.cell(row=idx, column=21).value = fila.recaudacion_acum
@@ -1447,15 +1672,38 @@ class PeluqueriaVIPApp(QMainWindow):
             ws_vector.cell(row=idx, column=22).number_format = '$#,##0.00'
             ws_vector.cell(row=idx, column=23).value = fila.clientes_con_refrigerio
             ws_vector.cell(row=idx, column=24).value = fila.max_cola_total
-            
-            # Aplicar bordes
-            for col in range(1, 25):
+            # Columnas base hasta 24. Ahora escribir columnas por cliente
+            col_base = 24
+            for idx_c, c in enumerate(clientes_ultimos):
+                cs = None
+                for s in fila.clientes_snapshot:
+                    if s['id'] == c.id:
+                        cs = s
+                        break
+
+                estado = cs['estado'] if cs else '-'
+                hora_ini = cs['hora_inicio_espera'] if cs else '-'
+                tiempo_esp = cs['tiempo_espera'] if cs else '-'
+
+                ws_vector.cell(row=idx, column=col_base + idx_c * 3 + 1).value = estado
+                ws_vector.cell(row=idx, column=col_base + idx_c * 3 + 2).value = hora_ini if hora_ini != '-' else '-'
+                if hora_ini != '-':
+                    ws_vector.cell(row=idx, column=col_base + idx_c * 3 + 2).number_format = '0.00'
+                ws_vector.cell(row=idx, column=col_base + idx_c * 3 + 3).value = tiempo_esp if tiempo_esp != '-' else '-'
+                if tiempo_esp != '-':
+                    ws_vector.cell(row=idx, column=col_base + idx_c * 3 + 3).number_format = '0.00'
+
+            # Aplicar bordes y centrado a todas las columnas (base + clientes)
+            total_cols = 24 + len(clientes_ultimos) * 3
+            for col in range(1, total_cols + 1):
                 ws_vector.cell(row=idx, column=col).border = border
                 ws_vector.cell(row=idx, column=col).alignment = Alignment(horizontal='center')
         
         # Ajustar ancho de columnas
-        for col in range(1, 25):
-            ws_vector.column_dimensions[chr(64 + col) if col <= 26 else f'A{chr(64 + col - 26)}'].width = 12
+        total_cols = 24 + len(clientes_ultimos) * 3
+        for col in range(1, total_cols + 1):
+            col_letter = get_column_letter(col)
+            ws_vector.column_dimensions[col_letter].width = 12
         
         # Guardar archivo
         wb.save(archivo)

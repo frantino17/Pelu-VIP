@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Peluquería VIP Simulación
+Comment=Simulador de eventos discretos para peluquería
+Exec=/home/pc/Documentos/Facu/SIM/TP4/Pelu VIP/ejecutar_peluqueria.sh
+Icon=accessories-calculator
+Terminal=true
+Categories=Education;Science;
+Path=/home/pc/Documentos/Facu/SIM/TP4/Pelu VIP
+StartupNotify=true
