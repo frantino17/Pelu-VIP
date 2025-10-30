@@ -470,22 +470,45 @@ class SimulacionPeluqueria:
             tiempo_fin_veterano_a=veterano_a.tiempo_fin_atencion,
             tiempo_fin_veterano_b=veterano_b.tiempo_fin_atencion
         )
-        # Construir snapshot de clientes: incluir todos los clientes creados hasta el momento
+        # Construir snapshot de clientes: incluir SOLO los clientes que aún existen en el sistema
+        # (objetos temporales activos: esperando o en servicio)
         clientes_snapshot = []
         for c in self.clientes:
             # Determinar estado del cliente
             if c.tiempo_fin_atencion > 0 and c.tiempo_fin_atencion <= self.tiempo_actual:
-                estado = 'Atendido'
+                # Cliente ya fue atendido = objeto destruido, NO incluir en snapshot
+                continue
             elif c.tiempo_inicio_atencion > 0 and c.tiempo_inicio_atencion <= self.tiempo_actual:
-                # Está siendo atendido o ya inició atención
+                # Está siendo atendido
                 if c.tiempo_fin_atencion > self.tiempo_actual:
-                    estado = 'En Servicio'
+                    # Determinar nombre del peluquero
+                    if c.peluquero_asignado:
+                        if c.peluquero_asignado.tipo == TipoPeluquero.APRENDIZ:
+                            estado = 'En Servicio Aprendiz'
+                        elif c.peluquero_asignado.tipo == TipoPeluquero.VETERANO_A:
+                            estado = 'En Servicio Vet A'
+                        else:
+                            estado = 'En Servicio Vet B'
+                    else:
+                        estado = 'En Servicio'
                 else:
-                    estado = 'Atendido'
+                    # Ya terminó = objeto destruido, NO incluir
+                    continue
             else:
                 # No inició atención aún
-                # Ver si está en cola_espera
-                estado = 'Esperando' if c in self.cola_espera else 'Pendiente'
+                if c.tiempo_llegada > self.tiempo_actual:
+                    # Aún no ha llegado, NO incluir (no existe todavía)
+                    continue
+                # Está esperando - determinar a qué peluquero
+                if c.peluquero_asignado:
+                    if c.peluquero_asignado.tipo == TipoPeluquero.APRENDIZ:
+                        estado = 'Esperando Aprendiz'
+                    elif c.peluquero_asignado.tipo == TipoPeluquero.VETERANO_A:
+                        estado = 'Esperando Vet A'
+                    else:
+                        estado = 'Esperando Vet B'
+                else:
+                    estado = 'Esperando'
 
             hora_inicio_espera = c.tiempo_llegada
             tiempo_espera = c.tiempo_espera if c.tiempo_espera else 0.0

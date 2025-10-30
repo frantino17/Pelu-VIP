@@ -8,11 +8,14 @@ Se han añadido columnas dinámicas al **Vector de Estado** para mostrar informa
 ### Columnas Añadidas por Cliente
 Para cada cliente (C1, C2, C3, ...) se muestran tres columnas adicionales:
 
-1. **Estado Cliente**: Indica el estado actual del cliente
-   - `Pendiente`: Cliente generado pero aún no ha llegado
-   - `Esperando`: Cliente en cola de espera
-   - `En Servicio`: Cliente siendo atendido
-   - `Atendido`: Cliente que ya terminó su atención
+1. **Estado Cliente**: Indica el estado actual del cliente y el peluquero asignado (solo objetos temporales activos)
+   - `Esperando Aprendiz`: Cliente en cola esperando al Aprendiz
+   - `Esperando Vet A`: Cliente en cola esperando al Veterano A
+   - `Esperando Vet B`: Cliente en cola esperando al Veterano B
+   - `En Servicio Aprendiz`: Cliente siendo atendido por el Aprendiz
+   - `En Servicio Vet A`: Cliente siendo atendido por el Veterano A
+   - `En Servicio Vet B`: Cliente siendo atendido por el Veterano B
+   - **Nota**: Los clientes atendidos NO aparecen (son objetos temporales destruidos)
 
 2. **Hora Inicio Espera**: Tiempo de llegada del cliente (en minutos desde el inicio de la jornada)
 
@@ -115,11 +118,16 @@ Lista de diccionarios, uno por cada cliente. Cada diccionario contiene:
 ```python
 {
     'id': int,                      # ID único del cliente
-    'estado': str,                  # 'Pendiente', 'Esperando', 'En Servicio', 'Atendido'
+    'estado': str,                  # 'Esperando [Peluquero]' o 'En Servicio [Peluquero]'
     'hora_inicio_espera': float,    # Tiempo de llegada (min)
     'tiempo_espera': float          # Tiempo que esperó antes de ser atendido (min)
 }
 ```
+
+**Importante**: 
+- Solo se incluyen clientes que **existen actualmente** en el sistema (objetos temporales activos)
+- Los clientes ya atendidos son destruidos y no aparecen en el snapshot
+- El estado incluye el **peluquero asignado**: Aprendiz, Vet A, o Vet B
 
 ## Notas Técnicas
 
@@ -147,12 +155,17 @@ class PeluqueriaVIPApp(QMainWindow):
 
 ### En la Tabla UI
 ```
-| Iter | Reloj | Evento | ... | C1 Estado | C1 Hora Inicio | C1 Tiempo Esp | C2 Estado | C2 Hora Inicio | C2 Tiempo Esp | ...
-|------|-------|--------|-----|-----------|----------------|---------------|-----------|----------------|---------------|-----
-|  1   | 2.44  | Llegada|     | Esperando | 2.44          | 0.00          | -         | -              | -             |
-|  2   | 2.44  | Fin At.|     | En Servic.| 2.44          | 0.00          | -         | -              | -             |
-| ...  | ...   | ...    |     | Atendido  | 2.44          | 0.00          | Esperando | 4.51           | 0.00          |
+| Iter | Reloj | Evento      | ... | C1 Estado            | C1 Hora Inicio | C1 Tiempo Esp | C2 Estado        | C2 Hora Inicio | C2 Tiempo Esp |
+|------|-------|-------------|-----|----------------------|----------------|---------------|------------------|----------------|---------------|
+|  1   | 2.44  | Llegada C1  |     | Esperando Vet A      | 2.44          | 0.00          | -                | -              | -             |
+|  2   | 2.44  | Inicio At.  |     | En Servicio Vet A    | 2.44          | 0.00          | -                | -              | -             |
+|  3   | 4.51  | Llegada C2  |     | En Servicio Vet A    | 2.44          | 0.00          | Esperando Vet B  | 4.51           | 0.00          |
+|  4   | 9.50  | Fin At. C1  |     | -                    | -              | -             | Esperando Vet B  | 4.51           | 0.00          |
 ```
+
+**Nota**: 
+- Cuando un cliente termina su atención (C1 en iteración 4), desaparece de las columnas porque es un objeto temporal destruido
+- El estado incluye a qué peluquero está esperando o quién lo está atendiendo
 
 ### En Excel
 Las mismas columnas se exportan con formato numérico apropiado (2 decimales) y bordes.
